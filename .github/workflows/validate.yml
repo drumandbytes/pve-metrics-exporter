@@ -1,0 +1,89 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: hadolint/hadolint-action@v3.4.0
+        with:
+          dockerfile: Dockerfile
+
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version: '1.27'
+
+      - name: gofmt
+        run: |
+          out="$(gofmt -l .)"
+          if [ -n "$out" ]; then
+            echo "Not gofmt-formatted:"
+            echo "$out"
+            exit 1
+          fi
+
+      - run: go vet ./...
+
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: docker/setup-buildx-action@v4.3.0
+
+      - uses: docker/build-push-action@v7.3.0
+        with:
+          context: .
+          load: true
+          tags: pve-metrics-exporter:smoke-test
+
+      # Fake credentials - never actually connects to a real Proxmox API.
+      # This only proves the container starts cleanly, listens, and answers
+      # /healthz without crashing - not that it can reach a real backend.
+      - name: Container starts and serves /healthz
+        run: |
+          docker run -d --name smoke-test \
+            -e PROXMOX_URL=https://example.invalid:8006 \
+            -e PROXMOX_TOKEN='PVEAPIToken=user@pve!id=secret' \
+            pve-metrics-exporter:smoke-test
+          sleep 2
+          if [ "$(docker inspect -f '{{.State.Running}}' smoke-test)" != "true" ]; then
+            echo "Container exited early:"
+            docker logs smoke-test
+            exit 1
+          fi
+          docker run --rm --network container:smoke-test curlimages/curl:latest \
+            -sS -f -o /dev/null http://localhost:9221/healthz
+          docker rm -f smoke-test
+
+  trivy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: docker/setup-buildx-action@v4.3.0
+
+      - uses: docker/build-push-action@v7.3.0
+        with:
+          context: .
+          load: true
+          tags: pve-metrics-exporter:trivy-scan
+
+      - uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: pve-metrics-exporter:trivy-scan
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+          # distroless/static-debian13's own base packages can carry
+          # CRITICAL/HIGH CVEs that are unfixed or fix_deferred upstream -
+          # nothing in this Dockerfile can patch those directly. Only fail
+          # on CVEs we're actually behind on a real fix for.
+          ignore-unfixed: true
