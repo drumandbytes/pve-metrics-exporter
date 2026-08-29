@@ -13,15 +13,23 @@ import (
 	"github.com/drumandbytes/pve-metrics-exporter/internal/summary"
 )
 
-// temperature's Value field is deliberately not called "celsius" -
-// its unit depends on the configured config.TemperatureUnit, and a
-// stale/misleading field name would be worse than a generic one. Check
-// the response's top-level "temperature_unit" field to interpret it.
+// temperature's Value/Critical fields are deliberately not called
+// "celsius" - their unit depends on the configured
+// config.TemperatureUnit, and a stale/misleading field name would be
+// worse than a generic one. Check the response's top-level
+// "temperature_unit" field to interpret them.
+//
+// Critical/CriticalPercent are omitted when the sensor chip doesn't
+// report a usable threshold (e.g. an ACPI thermal zone typically has
+// no crit/max at all) - a consumer showing this as a progress bar
+// should fall back to a plain number in that case.
 type temperature struct {
-	Kind  string  `json:"kind"`
-	Chip  string  `json:"chip"`
-	Label string  `json:"label"`
-	Value float64 `json:"value"`
+	Kind            string   `json:"kind"`
+	Chip            string   `json:"chip"`
+	Label           string   `json:"label"`
+	Value           float64  `json:"value"`
+	Critical        *float64 `json:"critical,omitempty"`
+	CriticalPercent *float64 `json:"critical_percent,omitempty"`
 }
 
 type node struct {
@@ -39,10 +47,9 @@ type node struct {
 	// common case of "just show me the CPU/GPU/NVMe temp" without
 	// having to filter the list. Omitted (null) when not found -
 	// e.g. a node with no lm-sensors configured, or no discrete GPU.
-	// Unit follows the response's top-level "temperature_unit".
-	CPUTemp  *float64 `json:"cpu_temp,omitempty"`
-	GPUTemp  *float64 `json:"gpu_temp,omitempty"`
-	NVMeTemp *float64 `json:"nvme_temp,omitempty"`
+	CPUTemp  *temperature `json:"cpu_temp,omitempty"`
+	GPUTemp  *temperature `json:"gpu_temp,omitempty"`
+	NVMeTemp *temperature `json:"nvme_temp,omitempty"`
 }
 
 type guest struct {
@@ -99,9 +106,7 @@ func toDTO(s summary.Summary, unit config.TemperatureUnit) response {
 			DiskPercent:    n.DiskPercent,
 		}
 		for _, t := range n.Temperatures {
-			dtoNode.Temperatures = append(dtoNode.Temperatures, temperature{
-				Kind: string(t.Kind), Chip: t.Chip, Label: t.Label, Value: convertTemp(t.Value, unit),
-			})
+			dtoNode.Temperatures = append(dtoNode.Temperatures, toTemperature(t, unit))
 		}
 		dtoNode.CPUTemp = pickTemp(n.Temperatures, unit, proxmox.KindCPU, "Package", "Tctl", "Tdie")
 		dtoNode.GPUTemp = pickTemp(n.Temperatures, unit, proxmox.KindGPU)
@@ -134,25 +139,48 @@ func toGuests(guests []summary.GuestSummary) []guest {
 	return out
 }
 
+// toTemperature converts one proxmox.Reading into its JSON shape.
+// CriticalPercent is deliberately computed from the raw Celsius value
+// and threshold, never from unit-converted ones: Celsius and
+// Fahrenheit have different zero points, so a ratio computed after
+// converting to Fahrenheit would not equal the same ratio in Celsius
+// (e.g. 0°C/100°C crit = 0%, but the equivalent 32°F/212°F is not 0%).
+// Value and Critical are still unit-converted for display.
+func toTemperature(r proxmox.Reading, unit config.TemperatureUnit) temperature {
+	t := temperature{
+		Kind:  string(r.Kind),
+		Chip:  r.Chip,
+		Label: r.Label,
+		Value: convertTemp(r.Value, unit),
+	}
+	if r.HasCritical {
+		critical := convertTemp(r.Critical, unit)
+		t.Critical = &critical
+		percent := r.Value / r.Critical * 100
+		t.CriticalPercent = &percent
+	}
+	return t
+}
+
 // pickTemp returns the first reading of the given kind whose label
 // matches one of preferredLabels (substring match, e.g. "Package"
 // matches "Package id 0"). With no preferredLabels given, it returns
 // the first reading of that kind at all (fine for GPUs, which
 // typically report a single "temp1" reading).
-func pickTemp(readings []proxmox.Reading, unit config.TemperatureUnit, kind proxmox.Kind, preferredLabels ...string) *float64 {
-	var fallback *float64
+func pickTemp(readings []proxmox.Reading, unit config.TemperatureUnit, kind proxmox.Kind, preferredLabels ...string) *temperature {
+	var fallback *temperature
 	for _, r := range readings {
 		if r.Kind != kind {
 			continue
 		}
 		if fallback == nil {
-			v := convertTemp(r.Value, unit)
-			fallback = &v
+			t := toTemperature(r, unit)
+			fallback = &t
 		}
 		for _, want := range preferredLabels {
 			if strings.Contains(r.Label, want) {
-				v := convertTemp(r.Value, unit)
-				return &v
+				t := toTemperature(r, unit)
+				return &t
 			}
 		}
 	}
