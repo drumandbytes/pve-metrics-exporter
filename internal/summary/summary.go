@@ -42,6 +42,7 @@ type GuestSummary struct {
 type StorageSummary struct {
 	Node       string
 	Name       string
+	Status     string
 	PluginType string
 	UsedBytes  float64
 	TotalBytes float64
@@ -104,6 +105,9 @@ func Build(ctx context.Context, client *proxmox.Client) (Summary, error) {
 			s.Nodes = append(s.Nodes, node)
 
 		case "qemu", "lxc":
+			if r.IsTemplate() {
+				continue
+			}
 			guest := GuestSummary{
 				Type:          r.Type,
 				Node:          r.Node,
@@ -125,6 +129,7 @@ func Build(ctx context.Context, client *proxmox.Client) (Summary, error) {
 			s.Storages = append(s.Storages, StorageSummary{
 				Node:       r.Node,
 				Name:       r.Storage,
+				Status:     r.Status,
 				PluginType: r.PluginType,
 				UsedBytes:  r.Disk,
 				TotalBytes: r.MaxDisk,

@@ -19,6 +19,17 @@ type ClusterResource struct {
 	Storage    string  `json:"storage"`
 	PluginType string  `json:"plugintype"`
 	VMID       int     `json:"vmid"`
+	// Proxmox reports this as 0/1, not a JSON bool - IsTemplate() below
+	// is the thing to actually call.
+	Template int `json:"template"`
+}
+
+// IsTemplate reports whether this qemu/lxc entry is a template rather
+// than a real, runnable guest (Proxmox always reports 0% CPU/mem for
+// templates since they never run - showing them in a resource-usage
+// list is just noise).
+func (r ClusterResource) IsTemplate() bool {
+	return r.Template != 0
 }
 
 type clusterResourcesResponse struct {

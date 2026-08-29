@@ -60,6 +60,7 @@ type guest struct {
 type storage struct {
 	Node       string  `json:"node"`
 	Name       string  `json:"name"`
+	Status     string  `json:"status"`
 	PluginType string  `json:"plugin_type"`
 	UsedBytes  float64 `json:"used_bytes"`
 	TotalBytes float64 `json:"total_bytes"`
@@ -113,7 +114,7 @@ func toDTO(s summary.Summary, unit config.TemperatureUnit) response {
 
 	for _, st := range s.Storages {
 		out.Storages = append(out.Storages, storage{
-			Node: st.Node, Name: st.Name, PluginType: st.PluginType,
+			Node: st.Node, Name: st.Name, Status: st.Status, PluginType: st.PluginType,
 			UsedBytes: st.UsedBytes, TotalBytes: st.TotalBytes, Percent: st.Percent,
 		})
 	}
