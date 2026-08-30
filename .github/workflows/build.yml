@@ -3,6 +3,7 @@ name: Build
 on:
   push:
     branches: [main]
+    tags: ['v*.*.*']
     paths-ignore:
       - '**.md'
       - 'LICENSE'
@@ -36,8 +37,10 @@ jobs:
         with:
           images: ghcr.io/drumandbytes/pve-metrics-exporter
           tags: |
-            type=raw,value=latest
+            type=raw,value=latest,enable={{is_default_branch}}
             type=sha,format=long
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
 
       - uses: docker/build-push-action@v7.3.0
         with:
