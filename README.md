@@ -131,7 +131,7 @@ spec:
     spec:
       containers:
         - name: pve-metrics-exporter
-          image: ghcr.io/drumandbytes/pve-metrics-exporter:latest
+          image: ghcr.io/drumandbytes/pve-metrics-exporter:1.0.0
           ports:
             - containerPort: 9221
           env:
