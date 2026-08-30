@@ -28,6 +28,8 @@ type Collector struct {
 	nodeDiskTotal *prometheus.Desc
 	nodeTempC     *prometheus.Desc
 	nodeTempF     *prometheus.Desc
+	nodeTempCritC *prometheus.Desc
+	nodeTempCritF *prometheus.Desc
 	guestUp       *prometheus.Desc
 	guestCPU      *prometheus.Desc
 	guestMemUsed  *prometheus.Desc
@@ -74,6 +76,15 @@ func New(fetcher *summary.Fetcher, cacheTTL time.Duration) *Collector {
 			"Hardware sensor temperature reading, in Celsius.", []string{"node", "kind", "chip", "label"}),
 		nodeTempF: desc("node", "temperature_fahrenheit",
 			"Hardware sensor temperature reading, in Fahrenheit.", []string{"node", "kind", "chip", "label"}),
+		// Only emitted for readings whose chip actually reports a
+		// crit/max threshold (see proxmox.Reading.HasCritical) - some
+		// don't, e.g. an ACPI thermal zone typically has neither.
+		// Missing series for those label combinations is normal
+		// Prometheus behavior, not a bug.
+		nodeTempCritC: desc("node", "temperature_critical_celsius",
+			"Sensor's own critical/max threshold, in Celsius. Compare against temperature_celsius to gauge how close a reading is to its limit.", []string{"node", "kind", "chip", "label"}),
+		nodeTempCritF: desc("node", "temperature_critical_fahrenheit",
+			"Sensor's own critical/max threshold, in Fahrenheit. Compare against temperature_fahrenheit to gauge how close a reading is to its limit.", []string{"node", "kind", "chip", "label"}),
 		guestUp: desc("guest", "up",
 			"Whether the VM/LXC is running (1) or not (0).", []string{"type", "node", "name", "vmid"}),
 		guestCPU: desc("guest", "cpu_percent",
@@ -107,7 +118,7 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(c.nodeMemTotal, prometheus.GaugeValue, n.MemTotalBytes, n.Name)
 		ch <- prometheus.MustNewConstMetric(c.nodeDiskUsed, prometheus.GaugeValue, n.DiskUsedBytes, n.Name)
 		ch <- prometheus.MustNewConstMetric(c.nodeDiskTotal, prometheus.GaugeValue, n.DiskTotalBytes, n.Name)
-		emitTemps(ch, c.nodeTempC, c.nodeTempF, n.Name, n.Temperatures)
+		emitTemps(ch, c.nodeTempC, c.nodeTempF, c.nodeTempCritC, c.nodeTempCritF, n.Name, n.Temperatures)
 	}
 
 	emitGuests(ch, c, s.VMs)
@@ -119,11 +130,15 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-func emitTemps(ch chan<- prometheus.Metric, descC, descF *prometheus.Desc, node string, readings []proxmox.Reading) {
+func emitTemps(ch chan<- prometheus.Metric, descC, descF, descCritC, descCritF *prometheus.Desc, node string, readings []proxmox.Reading) {
 	for _, r := range readings {
 		labels := []string{node, string(r.Kind), r.Chip, r.Label}
 		ch <- prometheus.MustNewConstMetric(descC, prometheus.GaugeValue, r.Value, labels...)
 		ch <- prometheus.MustNewConstMetric(descF, prometheus.GaugeValue, r.Value*9/5+32, labels...)
+		if r.HasCritical {
+			ch <- prometheus.MustNewConstMetric(descCritC, prometheus.GaugeValue, r.Critical, labels...)
+			ch <- prometheus.MustNewConstMetric(descCritF, prometheus.GaugeValue, r.Critical*9/5+32, labels...)
+		}
 	}
 }
 

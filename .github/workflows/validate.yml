@@ -44,6 +44,8 @@ jobs:
 
       - run: go vet ./...
 
+      - run: go test ./...
+
   smoke-test:
     runs-on: ubuntu-latest
     steps:

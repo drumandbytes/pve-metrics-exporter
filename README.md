@@ -71,11 +71,11 @@ Prometheus convention bakes the unit into the metric name itself (see `node_expo
       "disk_total_bytes": 100861726720,
       "disk_percent": 12.1,
       "temperatures": [
-        { "kind": "cpu", "chip": "coretemp-isa-0000", "label": "Package id 0", "value": 50 }
+        { "kind": "cpu", "chip": "coretemp-isa-0000", "label": "Package id 0", "value": 50, "critical": 100, "critical_percent": 50 }
       ],
-      "cpu_temp": 50,
-      "gpu_temp": 55,
-      "nvme_temp": 48.85
+      "cpu_temp": { "kind": "cpu", "chip": "coretemp-isa-0000", "label": "Package id 0", "value": 50, "critical": 100, "critical_percent": 50 },
+      "gpu_temp": { "kind": "gpu", "chip": "nouveau-pci-0100", "label": "temp1", "value": 55, "critical": 105, "critical_percent": 52.4 },
+      "nvme_temp": { "kind": "nvme", "chip": "nvme-pci-0200", "label": "Composite", "value": 48.85, "critical": 81.85, "critical_percent": 59.7 }
     }
   ],
   "vms": [ { "type": "qemu", "node": "prox", "name": "...", "vmid": 100, "status": "running", "cpu_percent": 14, "mem_used_bytes": 0, "mem_total_bytes": 0, "mem_percent": 0 } ],
@@ -84,7 +84,9 @@ Prometheus convention bakes the unit into the metric name itself (see `node_expo
 }
 ```
 
-`cpu_temp`/`gpu_temp`/`nvme_temp` are best-effort convenience picks out of `temperatures` (the full list is always included too). They're `null` when nothing matching was found — e.g. a node with no `lm-sensors` configured, or no discrete GPU.
+`cpu_temp`/`gpu_temp`/`nvme_temp` are best-effort convenience picks out of `temperatures` (the full list is always included too) — the same object shape either way. They're `null` when nothing matching was found — e.g. a node with no `lm-sensors` configured, or no discrete GPU.
+
+`critical`/`critical_percent` are omitted (not present, not `null`) when the sensor chip doesn't report a usable threshold at all — an ACPI thermal zone typically has neither `_crit` nor `_max`. A sentinel-like implausible value some NVMe firmwares report for an unimplemented threshold (seen in the wild: `65261.85`) is also rejected rather than surfaced as if it meant something. `critical_percent` is always computed from the raw Celsius reading regardless of `temperature_unit` — Celsius and Fahrenheit don't share a zero point, so a ratio computed after converting to Fahrenheit would not match the same ratio in Celsius.
 
 ## `/metrics`
 
@@ -93,6 +95,7 @@ Standard Prometheus text exposition format. Key metrics:
 - `pve_up` — whether the last fetch from Proxmox succeeded
 - `pve_node_cpu_percent`, `pve_node_memory_{used,total}_bytes`, `pve_node_disk_{used,total}_bytes`
 - `pve_node_temperature_celsius` / `pve_node_temperature_fahrenheit` — labeled by `node`, `kind` (`cpu`/`gpu`/`nvme`/`drive`/`chipset`/`acpi`/`other`), `chip`, `label`
+- `pve_node_temperature_critical_celsius` / `pve_node_temperature_critical_fahrenheit` — same labels; only present for readings whose chip reports a crit/max threshold (missing series for the rest is normal, not a bug)
 - `pve_guest_up`, `pve_guest_cpu_percent`, `pve_guest_memory_{used,total}_bytes` — labeled by `type` (`qemu`/`lxc`), `node`, `name`, `vmid`
 - `pve_storage_{used,total}_bytes` — labeled by `node`, `storage`, `plugin`
 
@@ -105,7 +108,7 @@ Standard Prometheus text exposition format. Key metrics:
   url: http://pve-metrics-exporter.your-namespace.svc.cluster.local:9221/api/summary
   template: |
     {{ range .JSON.Array "nodes" }}
-    <div>{{ .String "name" }}: {{ .Float "cpu_percent" | printf "%.0f" }}% CPU, {{ .Float "cpu_temp" | printf "%.0f" }}°C</div>
+    <div>{{ .String "name" }}: {{ .Float "cpu_percent" | printf "%.0f" }}% CPU, {{ .Float "cpu_temp.value" | printf "%.0f" }}°C</div>
     {{ end }}
 ```
 

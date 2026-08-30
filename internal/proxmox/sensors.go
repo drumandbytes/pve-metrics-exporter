@@ -72,11 +72,38 @@ type Reading struct {
 	Field   string // metric kind derived from the field name: temp, fan, in, curr, power
 	Value   float64
 	Kind    Kind
+
+	// Critical is the reading's shutdown/warning threshold ("_crit" if
+	// present, else "_max"), when the chip reports one at all - some
+	// don't (e.g. an ACPI thermal zone typically has no crit/max at
+	// all). Lets a consumer show "how close to the limit" rather than
+	// just a bare, context-free number.
+	Critical    float64
+	HasCritical bool
+}
+
+// sane bounds a "_crit"/"_max" value has to fall within to be trusted.
+// Some NVMe firmwares report an unimplemented threshold as a sentinel
+// like 65261.85 instead of omitting the field - clearly not a real
+// temperature limit, so treated the same as "not reported".
+const (
+	minSaneCritical = 40.0
+	maxSaneCritical = 150.0
+)
+
+func findCritical(fields map[string]float64, base string) (float64, bool) {
+	for _, suffix := range []string{"_crit", "_max"} {
+		if v, ok := fields[base+suffix]; ok && v > minSaneCritical && v < maxSaneCritical {
+			return v, true
+		}
+	}
+	return 0, false
 }
 
 // ParseSensors decodes the doubly-JSON-encoded sensors payload into a
-// flat list of readings. Only "*_input" fields are kept (the *_max/
-// *_crit/*_hyst thresholds alongside them aren't currently exposed).
+// flat list of readings, one per "*_input" field. Its sibling "_crit"/
+// "_max" threshold (if any) is captured on Reading.Critical - "_hyst"
+// (hysteresis) isn't currently exposed, nothing downstream needs it.
 func ParseSensors(raw string) ([]Reading, error) {
 	if strings.TrimSpace(raw) == "" {
 		return nil, nil
@@ -111,13 +138,17 @@ func ParseSensors(raw string) ([]Reading, error) {
 				if m == nil {
 					continue
 				}
+				base := m[1] + m[2] // e.g. "temp1", matching the sibling "temp1_crit"/"temp1_max" keys
+				critical, hasCritical := findCritical(fields, base)
 				readings = append(readings, Reading{
-					Chip:    chip,
-					Adapter: adapter,
-					Label:   label,
-					Field:   m[1], // temp | fan | in | curr | power
-					Value:   value,
-					Kind:    kind,
+					Chip:        chip,
+					Adapter:     adapter,
+					Label:       label,
+					Field:       m[1], // temp | fan | in | curr | power
+					Value:       value,
+					Kind:        kind,
+					Critical:    critical,
+					HasCritical: hasCritical,
 				})
 			}
 		}
