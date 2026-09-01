@@ -46,7 +46,7 @@ func (c *Client) get(ctx context.Context, path string, out interface{}) error {
 	if err != nil {
 		return fmt.Errorf("requesting %s: %w", path, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("%s returned HTTP %d", path, resp.StatusCode)

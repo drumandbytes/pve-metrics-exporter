@@ -21,30 +21,10 @@ concurrency:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7.0.1
-
-      - uses: hadolint/hadolint-action@v3.5.0
-        with:
-          dockerfile: Dockerfile
-
-      - uses: actions/setup-go@v7.0.0
-        with:
-          go-version: '1.27'
-
-      - name: gofmt
-        run: |
-          out="$(gofmt -l .)"
-          if [ -n "$out" ]; then
-            echo "Not gofmt-formatted:"
-            echo "$out"
-            exit 1
-          fi
-
-      - run: go vet ./...
-
-      - run: go test ./...
+    uses: drumandbytes/reusable-actions/.github/workflows/go-ci.yml@v1
+    with:
+      go-version: "1.27"
+      dockerfile-path: Dockerfile
 
   smoke-test:
     runs-on: ubuntu-latest
@@ -79,25 +59,9 @@ jobs:
           docker rm -f smoke-test
 
   trivy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7.0.1
-
-      - uses: docker/setup-buildx-action@v4.3.0
-
-      - uses: docker/build-push-action@v7.3.0
-        with:
-          context: .
-          load: true
-          tags: pve-metrics-exporter:trivy-scan
-
-      - uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: pve-metrics-exporter:trivy-scan
-          severity: 'CRITICAL,HIGH'
-          exit-code: '1'
-          # distroless/static-debian13's own base packages can carry
-          # CRITICAL/HIGH CVEs that are unfixed or fix_deferred upstream -
-          # nothing in this Dockerfile can patch those directly. Only fail
-          # on CVEs we're actually behind on a real fix for.
-          ignore-unfixed: true
+    uses: drumandbytes/reusable-actions/.github/workflows/security-scan.yml@v1
+    with:
+      scan-type: image
+      dockerfile: Dockerfile
+      severity: 'CRITICAL,HIGH'
+      ignore-unfixed: true
