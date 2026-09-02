@@ -27,6 +27,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write # Sigstore OIDC for build provenance
+      attestations: write # record the attestation on the repo
 
     steps:
       - uses: actions/checkout@v7.0.1
@@ -50,9 +52,19 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
 
       - uses: docker/build-push-action@v7.3.0
+        id: build
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      # Signed SLSA build provenance for the pushed image, stored next to it
+      # in GHCR as an OCI referrer. Verify with:
+      #   gh attestation verify oci://ghcr.io/drumandbytes/pve-metrics-exporter:latest --owner drumandbytes
+      - uses: actions/attest-build-provenance@v4.2.2
+        with:
+          subject-name: ghcr.io/drumandbytes/pve-metrics-exporter
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
