@@ -9,13 +9,12 @@ Both are served from one shared, short-TTL cache, so polling both concurrently d
 
 ## Dashboards
 
-`/metrics` scraped into Grafana:
+`/metrics` in Grafana (left); `/api/summary` rendered directly by [Glance](https://github.com/glanceapp/glance) (right):
 
-![Grafana dashboard — node gauges, per-core CPU temperatures, guest CPU/memory](docs/grafana.jpg)
-
-`/api/summary` rendered directly by [Glance](https://github.com/glanceapp/glance):
-
-![Glance widget — node CPU/RAM, CPU/GPU/NVMe temperatures, storage, cluster nodes](docs/glance.jpg)
+<p>
+  <img src="docs/grafana.jpg" alt="Grafana dashboard — node gauges, per-core CPU temperatures, guest CPU/memory" width="48%">
+  <img src="docs/glance.jpg" alt="Glance widget — node CPU/RAM, CPU/GPU/NVMe temperatures, storage, cluster nodes" width="48%">
+</p>
 
 ## Why
 
