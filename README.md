@@ -7,6 +7,15 @@ A small Proxmox VE exporter with two outputs from one shared data fetch:
 
 Both are served from one shared, short-TTL cache, so polling both concurrently doesn't double the load on your Proxmox API.
 
+## Dashboards
+
+`/metrics` in Grafana (left); `/api/summary` rendered directly by [Glance](https://github.com/glanceapp/glance) (right):
+
+<p>
+  <img src="docs/grafana.jpg" alt="Grafana dashboard — node gauges, per-core CPU temperatures, guest CPU/memory" width="48%">
+  <img src="docs/glance.jpg" alt="Glance widget — node CPU/RAM, CPU/GPU/NVMe temperatures, storage, cluster nodes" width="48%">
+</p>
+
 ## Why
 
 Proxmox's `sensorsOutput` field (from `/nodes/{node}/status`) embeds the raw `sensors -j` (lm-sensors) output as a JSON-encoded *string*, not a nested object — most tools that consume the Proxmox API skip it because of that extra parsing step. This exporter does the parsing once, server-side, and exposes clean values either way you want them.
