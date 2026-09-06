@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/drumandbytes/pve-metrics-exporter/compare/v1.1.0...v1.1.1) (2026-09-06)
+
+
+### Bug Fixes
+
+* **ci:** opt into app-token merge, so releases actually finish ([#13](https://github.com/drumandbytes/pve-metrics-exporter/issues/13)) ([4d9cf2f](https://github.com/drumandbytes/pve-metrics-exporter/commit/4d9cf2f2ef6108243ab0e39279b209998b1b977b))
+
 ## [1.1.0](https://github.com/drumandbytes/pve-metrics-exporter/compare/v1.0.0...v1.1.0) (2026-09-04)
 
 
