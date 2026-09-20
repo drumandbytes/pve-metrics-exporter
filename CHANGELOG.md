@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.2](https://github.com/drumandbytes/pve-metrics-exporter/compare/v1.1.1...v1.1.2) (2026-09-20)
+
+
+### Bug Fixes
+
+* drop paths-ignore from the workflow hosting the required-check gate ([#19](https://github.com/drumandbytes/pve-metrics-exporter/issues/19)) ([f66378c](https://github.com/drumandbytes/pve-metrics-exporter/commit/f66378c3094a13833ee2077f7c0f05fac3fb6666))
+
 ## [1.1.1](https://github.com/drumandbytes/pve-metrics-exporter/compare/v1.1.0...v1.1.1) (2026-09-06)
 
 
