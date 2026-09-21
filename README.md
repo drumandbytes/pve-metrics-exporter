@@ -1,6 +1,10 @@
 # pve-metrics-exporter
 
-A small Proxmox VE exporter with two outputs from one shared data fetch:
+A small Proxmox VE exporter with two outputs from one shared data fetch.
+
+[More Drumandbytes projects](https://drumandbytes.com/projects/)
+
+It provides:
 
 - **`/metrics`** — a real Prometheus exporter (via `client_golang`), covering node/VM/LXC/storage resource usage *and* hardware sensor temperatures (CPU, GPU, NVMe, chipset, etc. — whatever `lm-sensors` reports on the host). Most Proxmox exporters skip temperatures entirely; this one doesn't.
 - **`/api/summary`** — the same data as flat, pre-computed JSON (percentages already done, sensor labels already parsed), meant for dashboards like [Glance](https://github.com/glanceapp/glance) that want to render values directly without embedding data-munging logic in a template.
