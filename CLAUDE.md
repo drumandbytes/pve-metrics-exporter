@@ -25,7 +25,7 @@ go test ./...
 docker build -t pve-metrics-exporter .
 ```
 
-CI (`.github/workflows/validate.yml`) gates on the `drumandbytes/reusable-actions` `go-ci.yml` lint job, a Docker smoke test (`/healthz` against fake credentials — never a real Proxmox backend), and Trivy image scan. `build.yml` pushes multi-arch images to GHCR with SLSA provenance attestation on push to `main`/tags.
+CI (`.github/workflows/validate.yml`) gates on the `drumandbytes/reusable-actions` `go-ci.yml` lint job, and a Docker smoke test (`/healthz` against fake credentials — never a real Proxmox backend). The Trivy image scan is its own workflow (`security.yml`: PRs plus a weekly run on main), kept out of `validate.yml` so a CVE can't block every Dependabot merge. `build.yml` pushes multi-arch images to GHCR with SLSA provenance attestation on push to `main`/tags.
 
 ## Conventions
 
