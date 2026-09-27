@@ -1,7 +1,4 @@
-// Package proxmox is a minimal client for the pieces of the Proxmox VE
-// API this exporter needs: cluster-wide resource listing and per-node
-// hardware sensor readings. It deliberately does not try to be a
-// general-purpose PVE API client.
+// Package proxmox is a minimal client for PVE cluster resources and node sensors.
 package proxmox
 
 import (
@@ -19,10 +16,7 @@ type Client struct {
 	httpClient *http.Client
 }
 
-// NewClient builds a client. insecureSkipVerify controls whether the
-// server's TLS certificate is validated - Proxmox ships a self-signed
-// cert by default, so this is commonly needed on homelab setups that
-// haven't replaced it with one from a trusted CA.
+// NewClient builds a client. insecureSkipVerify is for PVE's default self-signed cert.
 func NewClient(baseURL, authHeader string, insecureSkipVerify bool, timeout time.Duration) *Client {
 	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecureSkipVerify}, //nolint:gosec // opt-in via config
@@ -57,8 +51,7 @@ func (c *Client) get(ctx context.Context, path string, out interface{}) error {
 	return nil
 }
 
-// ClusterResources returns every node/VM/LXC/storage entry the token
-// has visibility into.
+// ClusterResources returns every node/VM/LXC/storage entry the token can see.
 func (c *Client) ClusterResources(ctx context.Context) ([]ClusterResource, error) {
 	var out clusterResourcesResponse
 	if err := c.get(ctx, "/api2/json/cluster/resources", &out); err != nil {
@@ -67,9 +60,7 @@ func (c *Client) ClusterResources(ctx context.Context) ([]ClusterResource, error
 	return out.Data, nil
 }
 
-// NodeStatus returns hardware/sensor status for a single node. Only
-// online nodes can be queried - Proxmox returns an error for nodes
-// that are offline/unreachable.
+// NodeStatus returns one node's hardware status; errors for offline nodes.
 func (c *Client) NodeStatus(ctx context.Context, node string) (NodeStatus, error) {
 	var out nodeStatusResponse
 	if err := c.get(ctx, "/api2/json/nodes/"+node+"/status", &out); err != nil {

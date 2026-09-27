@@ -8,10 +8,7 @@ import (
 )
 
 func TestToTemperature_CriticalPercentIsUnitIndependent(t *testing.T) {
-	// 50°C of 100°C critical = 50%, always - regardless of which unit
-	// Value/Critical are displayed in. Computing the percent from
-	// Fahrenheit-converted numbers (122°F / 212°F) would wrongly give
-	// ~57.5%, since Celsius and Fahrenheit don't share a zero point.
+	// percent from raw °C: 122°F/212°F would wrongly give ~57.5%
 	r := proxmox.Reading{Kind: proxmox.KindCPU, Value: 50.0, Critical: 100.0, HasCritical: true}
 
 	celsius := toTemperature(r, config.Celsius)

@@ -9,14 +9,9 @@ import (
 	"github.com/drumandbytes/pve-metrics-exporter/internal/proxmox"
 )
 
-// Fetcher shares one cached Summary between the JSON API and the
-// Prometheus collector, so a scrape and a Glance poll landing close
-// together don't each trigger their own round trip to Proxmox.
-//
-// On a refresh failure, the previous successful Summary keeps being
-// served (up to maxStale) rather than surfacing an error immediately -
-// a brief Proxmox API hiccup shouldn't flap Glance's widget or a
-// Prometheus scrape.
+// Fetcher shares one cached Summary between the JSON API and the collector.
+// On refresh failure the last good Summary is served up to maxStale, so a PVE
+// hiccup doesn't flap Glance or a scrape.
 type Fetcher struct {
 	client   *proxmox.Client
 	ttl      time.Duration

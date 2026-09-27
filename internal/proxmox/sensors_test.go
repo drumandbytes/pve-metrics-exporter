@@ -2,11 +2,8 @@ package proxmox
 
 import "testing"
 
-// Fixture captured from a real Proxmox host's sensorsOutput during
-// development (see git history) - includes the real cases that make
-// this parsing non-trivial: a bogus NVMe secondary-sensor threshold
-// sentinel (65261.85, not a real temperature limit) and an ACPI zone
-// with no crit/max at all.
+// Fixture from a real host: includes an NVMe 65261.85 threshold sentinel and
+// an ACPI zone with no crit/max.
 const realSensorsFixture = `{
   "coretemp-isa-0000": {
     "Adapter": "ISA adapter",
@@ -49,9 +46,7 @@ func TestParseSensors_CriticalThresholds(t *testing.T) {
 		{"nouveau-pci-0100/temp1", 55.0, true, 105.0},
 		{"acpitz-acpi-0/temp1", 30.0, false, 0}, // no crit/max reported at all
 		{"nvme-pci-0200/Composite", 48.85, true, 81.85},
-		// The 65261.85 "_max" sentinel some NVMe firmwares report for
-		// an unimplemented threshold must be rejected, not surfaced as
-		// a real critical value.
+		// the NVMe 65261.85 "_max" sentinel must be rejected
 		{"nvme-pci-0200/Sensor 1", 48.85, false, 0},
 	}
 
