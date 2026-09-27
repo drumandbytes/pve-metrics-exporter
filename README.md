@@ -188,6 +188,10 @@ gh attestation verify oci://ghcr.io/drumandbytes/pve-metrics-exporter:latest --o
 
 This confirms the image was built from this repo by the `Build` workflow.
 
+## How it was made
+
+Built with the help of an AI coding assistant (Claude). I review and test what gets published.
+
 ## License
 
 MIT
