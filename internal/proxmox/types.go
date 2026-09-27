@@ -1,9 +1,7 @@
 package proxmox
 
-// ClusterResource is one entry from /api2/json/cluster/resources.
-// Not every field is populated for every "type" - e.g. storages don't
-// have "cpu", VMs/LXCs don't have "storage". Left as pointers where a
-// zero value would be ambiguous with "field absent".
+// ClusterResource is one /api2/json/cluster/resources entry. Fields vary by
+// type; pointers where zero would be ambiguous with absent.
 type ClusterResource struct {
 	Type       string  `json:"type"` // node | qemu | lxc | storage | sdn | pool
 	Node       string  `json:"node"`
@@ -19,15 +17,11 @@ type ClusterResource struct {
 	Storage    string  `json:"storage"`
 	PluginType string  `json:"plugintype"`
 	VMID       int     `json:"vmid"`
-	// Proxmox reports this as 0/1, not a JSON bool - IsTemplate() below
-	// is the thing to actually call.
+	// 0/1, not a bool: use IsTemplate()
 	Template int `json:"template"`
 }
 
-// IsTemplate reports whether this qemu/lxc entry is a template rather
-// than a real, runnable guest (Proxmox always reports 0% CPU/mem for
-// templates since they never run - showing them in a resource-usage
-// list is just noise).
+// IsTemplate reports whether a qemu/lxc entry is a template (always 0% usage, just noise).
 func (r ClusterResource) IsTemplate() bool {
 	return r.Template != 0
 }
@@ -36,10 +30,8 @@ type clusterResourcesResponse struct {
 	Data []ClusterResource `json:"data"`
 }
 
-// NodeStatus is the relevant subset of /api2/json/nodes/{node}/status.
-// SensorsOutput is itself a JSON-encoded string (Proxmox embeds the raw
-// `sensors -j` output as text rather than a nested object), so it's
-// decoded in a second pass - see ParseSensors.
+// NodeStatus is the used subset of /api2/json/nodes/{node}/status.
+// SensorsOutput is a JSON string; see ParseSensors.
 type NodeStatus struct {
 	SensorsOutput string `json:"sensorsOutput"`
 }

@@ -1,7 +1,4 @@
-// Package summary flattens raw Proxmox API responses (percentages
-// computed, sensor data parsed) into shapes that are easy for both
-// the JSON API (Glance) and the Prometheus collector to consume
-// without re-deriving the same math twice.
+// Package summary flattens PVE responses into one shape for both the JSON API and the collector.
 package summary
 
 import (
@@ -24,9 +21,7 @@ type NodeSummary struct {
 	Temperatures   []proxmox.Reading
 }
 
-// GuestSummary covers both QEMU VMs and LXC containers - Proxmox
-// reports them with near-identical fields in cluster/resources, and
-// callers distinguish via Type.
+// GuestSummary covers QEMU VMs and LXC containers; see Type.
 type GuestSummary struct {
 	Type          string // qemu | lxc
 	Node          string
@@ -64,11 +59,7 @@ func percent(used, total float64) float64 {
 	return used / total * 100
 }
 
-// Build fetches cluster/resources plus per-node sensor data and
-// flattens it all into a Summary. Sensor lookups only happen for
-// nodes reporting status "online" - Proxmox returns an API error for
-// nodes it can't currently reach, and there's nothing useful to show
-// for those anyway.
+// Build fetches cluster/resources plus sensors for online nodes (PVE errors on unreachable ones).
 func Build(ctx context.Context, client *proxmox.Client) (Summary, error) {
 	resources, err := client.ClusterResources(ctx)
 	if err != nil {
@@ -96,10 +87,7 @@ func Build(ctx context.Context, client *proxmox.Client) (Summary, error) {
 					if readings, err := proxmox.ParseSensors(status.SensorsOutput); err == nil {
 						node.Temperatures = proxmox.Temperatures(readings)
 					}
-					// Sensor parsing failures are non-fatal - a node
-					// with no lm-sensors configured simply reports no
-					// temperatures, rather than failing the whole
-					// summary.
+					// non-fatal: no lm-sensors just means no temperatures
 				}
 			}
 			s.Nodes = append(s.Nodes, node)

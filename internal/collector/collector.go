@@ -1,6 +1,4 @@
-// Package collector adapts a summary.Fetcher into a prometheus.Collector,
-// so metrics are computed fresh from the shared cache on every scrape
-// rather than accumulated/pushed.
+// Package collector computes metrics from the shared summary cache on every scrape.
 package collector
 
 import (
@@ -38,12 +36,8 @@ type Collector struct {
 	storageTotal  *prometheus.Desc
 }
 
-// New builds the collector. cacheTTL is only used to document the
-// caching behavior in each metric's HELP text, per Prometheus's own
-// guidance ("if a metric is particularly expensive to retrieve... it
-// is acceptable to cache it. This should be noted in the HELP
-// string.") - it doesn't change the actual caching (that's
-// summary.Fetcher's job, shared with the JSON API).
+// New builds the collector. cacheTTL only feeds HELP text, as Prometheus
+// recommends for cached metrics; caching is summary.Fetcher's job.
 func New(fetcher *summary.Fetcher, cacheTTL time.Duration) *Collector {
 	cacheNote := fmt.Sprintf(" Cached for up to %s to limit load on the Proxmox API.", cacheTTL)
 	desc := func(subsystem, name, help string, labels []string) *prometheus.Desc {
@@ -64,23 +58,13 @@ func New(fetcher *summary.Fetcher, cacheTTL time.Duration) *Collector {
 			"Node root filesystem usage, in bytes.", []string{"node"}),
 		nodeDiskTotal: desc("node", "disk_total_bytes",
 			"Node root filesystem size, in bytes.", []string{"node"}),
-		// Both unit variants are always emitted, unconditionally -
-		// not gated by an env var. The unit lives in the metric name
-		// per Prometheus convention (see node_exporter's
-		// node_hwmon_temp_celsius), so toggling it via config would
-		// mean either lying about the name or renaming the metric out
-		// from under anyone's saved dashboard/alert. Emitting both
-		// side by side avoids that entirely: nothing to break, pick
-		// whichever in your query.
+		// both units always emitted: the unit is part of the metric name, so a
+		// config toggle would either lie or rename series under dashboards
 		nodeTempC: desc("node", "temperature_celsius",
 			"Hardware sensor temperature reading, in Celsius.", []string{"node", "kind", "chip", "label"}),
 		nodeTempF: desc("node", "temperature_fahrenheit",
 			"Hardware sensor temperature reading, in Fahrenheit.", []string{"node", "kind", "chip", "label"}),
-		// Only emitted for readings whose chip actually reports a
-		// crit/max threshold (see proxmox.Reading.HasCritical) - some
-		// don't, e.g. an ACPI thermal zone typically has neither.
-		// Missing series for those label combinations is normal
-		// Prometheus behavior, not a bug.
+		// only for chips that report crit/max; missing series are expected
 		nodeTempCritC: desc("node", "temperature_critical_celsius",
 			"Sensor's own critical/max threshold, in Celsius. Compare against temperature_celsius to gauge how close a reading is to its limit.", []string{"node", "kind", "chip", "label"}),
 		nodeTempCritF: desc("node", "temperature_critical_fahrenheit",

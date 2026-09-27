@@ -1,7 +1,5 @@
-// Package api renders summary.Summary as JSON for HTTP consumers
-// (Glance's custom-api widget, curl, etc). Kept separate from the
-// summary package so presentation choices (rounding, convenience
-// fields, JSON field names) don't leak into the core data model.
+// Package api renders summary.Summary as JSON; kept apart so presentation
+// choices don't leak into the data model.
 package api
 
 import (
@@ -13,16 +11,9 @@ import (
 	"github.com/drumandbytes/pve-metrics-exporter/internal/summary"
 )
 
-// temperature's Value/Critical fields are deliberately not called
-// "celsius" - their unit depends on the configured
-// config.TemperatureUnit, and a stale/misleading field name would be
-// worse than a generic one. Check the response's top-level
-// "temperature_unit" field to interpret them.
-//
-// Critical/CriticalPercent are omitted when the sensor chip doesn't
-// report a usable threshold (e.g. an ACPI thermal zone typically has
-// no crit/max at all) - a consumer showing this as a progress bar
-// should fall back to a plain number in that case.
+// Value/Critical aren't named "celsius": the unit follows config.TemperatureUnit
+// (see top-level "temperature_unit"). Critical fields are omitted when the chip
+// reports no threshold.
 type temperature struct {
 	Kind            string   `json:"kind"`
 	Chip            string   `json:"chip"`
@@ -43,10 +34,7 @@ type node struct {
 	DiskTotalBytes float64       `json:"disk_total_bytes"`
 	DiskPercent    float64       `json:"disk_percent"`
 	Temperatures   []temperature `json:"temperatures"`
-	// Best-effort convenience picks out of Temperatures, for the
-	// common case of "just show me the CPU/GPU/NVMe temp" without
-	// having to filter the list. Omitted (null) when not found -
-	// e.g. a node with no lm-sensors configured, or no discrete GPU.
+	// convenience picks from Temperatures; null when not found
 	CPUTemp  *temperature `json:"cpu_temp,omitempty"`
 	GPUTemp  *temperature `json:"gpu_temp,omitempty"`
 	NVMeTemp *temperature `json:"nvme_temp,omitempty"`
@@ -139,13 +127,8 @@ func toGuests(guests []summary.GuestSummary) []guest {
 	return out
 }
 
-// toTemperature converts one proxmox.Reading into its JSON shape.
-// CriticalPercent is deliberately computed from the raw Celsius value
-// and threshold, never from unit-converted ones: Celsius and
-// Fahrenheit have different zero points, so a ratio computed after
-// converting to Fahrenheit would not equal the same ratio in Celsius
-// (e.g. 0°C/100°C crit = 0%, but the equivalent 32°F/212°F is not 0%).
-// Value and Critical are still unit-converted for display.
+// toTemperature: CriticalPercent comes from raw Celsius, never converted values,
+// since °C and °F don't share a zero point.
 func toTemperature(r proxmox.Reading, unit config.TemperatureUnit) temperature {
 	t := temperature{
 		Kind:  string(r.Kind),
@@ -162,11 +145,8 @@ func toTemperature(r proxmox.Reading, unit config.TemperatureUnit) temperature {
 	return t
 }
 
-// pickTemp returns the first reading of the given kind whose label
-// matches one of preferredLabels (substring match, e.g. "Package"
-// matches "Package id 0"). With no preferredLabels given, it returns
-// the first reading of that kind at all (fine for GPUs, which
-// typically report a single "temp1" reading).
+// pickTemp returns the first reading of kind whose label contains one of
+// preferredLabels, or the first of that kind if none are given.
 func pickTemp(readings []proxmox.Reading, unit config.TemperatureUnit, kind proxmox.Kind, preferredLabels ...string) *temperature {
 	var fallback *temperature
 	for _, r := range readings {

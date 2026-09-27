@@ -1,10 +1,4 @@
-# Two-stage build. Unlike a wrapped vendor binary (see e.g.
-# drumandbytes/nordvpn), this is our own pure Go code with CGO disabled -
-# no .deb, no shared libraries to hunt down with ldd, just a single static
-# binary. distroless/static (not /base) is enough: no libc needed at all,
-# and it already bundles CA certificates + tzdata, which is all the
-# runtime needs (HTTPS to the Proxmox API; TZ isn't currently used but
-# costs nothing to have available).
+# Static CGO-free binary; distroless/static brings CA certs and tzdata.
 FROM golang:1.27-trixie AS builder
 WORKDIR /src
 COPY go.mod go.sum ./

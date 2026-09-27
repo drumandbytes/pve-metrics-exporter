@@ -1,6 +1,4 @@
-// Package config loads settings from environment variables. Env vars
-// only (no flags/files) - this is meant to run as a container, where
-// env vars are the natural configuration surface.
+// Package config reads env vars only; it runs as a container.
 package config
 
 import (
@@ -10,12 +8,8 @@ import (
 	"time"
 )
 
-// TemperatureUnit controls unit conversion for the JSON API only.
-// /metrics always reports Celsius regardless of this setting - that's
-// the Prometheus convention (base units, so dashboards/alerts stay
-// consistent no matter how any one exporter instance is configured);
-// Grafana can convert to Fahrenheit in a panel if needed. The JSON API
-// is meant for direct human display (Glance), so it honors this.
+// TemperatureUnit applies to the JSON API only; /metrics stays Celsius per
+// Prometheus convention.
 type TemperatureUnit string
 
 const (

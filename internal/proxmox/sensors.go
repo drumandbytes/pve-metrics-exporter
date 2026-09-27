@@ -7,10 +7,8 @@ import (
 	"strings"
 )
 
-// Proxmox embeds the raw `sensors -j` (lm-sensors) output as a
-// JSON-encoded string inside NodeStatus.SensorsOutput, rather than as
-// a nested object - so it needs a second json.Unmarshal pass. Its
-// shape, once decoded, is:
+// Proxmox embeds raw `sensors -j` output as a JSON string in
+// NodeStatus.SensorsOutput, so it takes a second Unmarshal. Decoded:
 //
 //	{
 //	  "<chip>-<bus>-<addr>": {
@@ -20,17 +18,13 @@ import (
 //	  }
 //	}
 //
-// "<chip>" and "<label>" vary by hardware/vendor (e.g. "coretemp" on
-// Intel vs "k10temp"/"zenpower" on AMD for CPU package temps).
+// <chip> and <label> vary by vendor (coretemp on Intel, k10temp/zenpower on AMD).
 type rawSensorTree map[string]map[string]json.RawMessage
 
 var inputFieldRe = regexp.MustCompile(`^(temp|fan|in|curr|power)(\d*)_input$`)
 
-// Kind classifies a sensor chip into a broad hardware category, based
-// on the chip-name prefixes lm-sensors uses across common drivers.
-// Unrecognized chips are still reported (Kind "other") rather than
-// dropped, since new hardware/drivers show up constantly and a strict
-// allowlist would just silently hide readings.
+// Kind classifies a chip by lm-sensors name prefix. Unknown chips report as
+// "other" rather than being dropped.
 type Kind string
 
 const (
@@ -62,9 +56,7 @@ func classify(chip string) Kind {
 	}
 }
 
-// Reading is a single numeric value from one sensor chip/label/field,
-// e.g. chip "coretemp-isa-0000", label "Package id 0", field
-// "temp1_input" -> 53.0.
+// Reading is one value, e.g. coretemp-isa-0000 / "Package id 0" / temp1_input -> 53.0.
 type Reading struct {
 	Chip    string
 	Adapter string
@@ -73,19 +65,13 @@ type Reading struct {
 	Value   float64
 	Kind    Kind
 
-	// Critical is the reading's shutdown/warning threshold ("_crit" if
-	// present, else "_max"), when the chip reports one at all - some
-	// don't (e.g. an ACPI thermal zone typically has no crit/max at
-	// all). Lets a consumer show "how close to the limit" rather than
-	// just a bare, context-free number.
+	// Critical is "_crit", else "_max", when the chip reports one (ACPI zones often don't).
 	Critical    float64
 	HasCritical bool
 }
 
-// sane bounds a "_crit"/"_max" value has to fall within to be trusted.
-// Some NVMe firmwares report an unimplemented threshold as a sentinel
-// like 65261.85 instead of omitting the field - clearly not a real
-// temperature limit, so treated the same as "not reported".
+// sane bounds for "_crit"/"_max"; some NVMe firmwares report sentinels like
+// 65261.85 for unimplemented thresholds.
 const (
 	minSaneCritical = 40.0
 	maxSaneCritical = 150.0
@@ -100,10 +86,8 @@ func findCritical(fields map[string]float64, base string) (float64, bool) {
 	return 0, false
 }
 
-// ParseSensors decodes the doubly-JSON-encoded sensors payload into a
-// flat list of readings, one per "*_input" field. Its sibling "_crit"/
-// "_max" threshold (if any) is captured on Reading.Critical - "_hyst"
-// (hysteresis) isn't currently exposed, nothing downstream needs it.
+// ParseSensors flattens the payload to one Reading per "*_input" field, with
+// its sibling "_crit"/"_max" as Critical. "_hyst" is ignored.
 func ParseSensors(raw string) ([]Reading, error) {
 	if strings.TrimSpace(raw) == "" {
 		return nil, nil
@@ -128,9 +112,7 @@ func ParseSensors(raw string) ([]Reading, error) {
 			}
 			var fields map[string]float64
 			if err := json.Unmarshal(fieldsRaw, &fields); err != nil {
-				// Some labels (e.g. "pwm1": {}) have no numeric
-				// sub-fields, or fields aren't all numeric - skip
-				// rather than fail the whole node's readings.
+				// some labels (e.g. "pwm1": {}) have no numeric fields; skip, don't fail the node
 				continue
 			}
 			for field, value := range fields {
@@ -156,8 +138,7 @@ func ParseSensors(raw string) ([]Reading, error) {
 	return readings, nil
 }
 
-// Temperatures filters a reading list down to temperature-only
-// readings ("temp*_input" fields, reported by lm-sensors in Celsius).
+// Temperatures filters readings to "temp*_input" (Celsius).
 func Temperatures(readings []Reading) []Reading {
 	var out []Reading
 	for _, r := range readings {
