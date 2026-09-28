@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/drumandbytes/pve-metrics-exporter/compare/v1.1.2...v1.2.0) (2026-09-28)
+
+
+### Features
+
+* ship Prometheus alerting rules with unit tests ([#28](https://github.com/drumandbytes/pve-metrics-exporter/issues/28)) ([f4d1fde](https://github.com/drumandbytes/pve-metrics-exporter/commit/f4d1fde8c080c09f0d36b04d3c753f9042cb2af9))
+
 ## [1.1.2](https://github.com/drumandbytes/pve-metrics-exporter/compare/v1.1.1...v1.1.2) (2026-09-20)
 
 
