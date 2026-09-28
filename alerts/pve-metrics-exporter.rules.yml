@@ -1,0 +1,93 @@
+# Prometheus alerting rules for pve-metrics-exporter.
+# Load with `rule_files:`, or paste the group into a PrometheusRule's spec.groups.
+# Thresholds are starting points; tune `for:` and the percentages to your hosts.
+groups:
+  - name: pve-metrics-exporter
+    rules:
+      - alert: ProxmoxExporterStale
+        expr: pve_up == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: pve-metrics-exporter can't reach the Proxmox API
+          description: The last fetch failed and a cached result is being served, so every other Proxmox metric is going stale. Check the API URL, the token and TLS settings.
+
+      - alert: ProxmoxTemperatureHigh
+        # Only sensors that report their own critical point have the threshold series.
+        expr: >-
+          max by (node, kind, chip, label) (pve_node_temperature_celsius)
+          > max by (node, kind, chip, label) (pve_node_temperature_critical_celsius) - 10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.node }} {{ $labels.kind }} {{ $labels.label }} at {{ $value }}°C"
+          description: Within 10°C of the sensor's own critical temperature. Check fans, dust and airflow.
+
+      - alert: ProxmoxTemperatureCritical
+        expr: >-
+          max by (node, kind, chip, label) (pve_node_temperature_celsius)
+          >= max by (node, kind, chip, label) (pve_node_temperature_critical_celsius)
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.node }} {{ $labels.kind }} {{ $labels.label }} at {{ $value }}°C, at its critical limit"
+          description: The hardware is at the temperature where it throttles or shuts down.
+
+      - alert: ProxmoxNodeCpuHigh
+        expr: max by (node) (pve_node_cpu_percent) > 90
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Proxmox node {{ $labels.node }} CPU at {{ $value | humanize }}%"
+          description: Sustained CPU saturation; guests on this node are being slowed down.
+
+      - alert: ProxmoxNodeMemoryHigh
+        expr: max by (node) (pve_node_memory_used_bytes / pve_node_memory_total_bytes) > 0.95
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Proxmox node {{ $labels.node }} memory at {{ $value | humanizePercentage }}"
+          description: The host will start swapping or OOM-killing guest processes.
+
+      - alert: ProxmoxNodeRootDiskFilling
+        expr: max by (node) (pve_node_disk_used_bytes / pve_node_disk_total_bytes) > 0.90
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Proxmox node {{ $labels.node }} root filesystem {{ $value | humanizePercentage }} full"
+          description: A full root filesystem stops Proxmox services and logging.
+
+      - alert: ProxmoxStorageFilling
+        expr: max by (node, storage) (pve_storage_used_bytes / pve_storage_total_bytes) > 0.85
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Proxmox storage {{ $labels.storage }} on {{ $labels.node }} is {{ $value | humanizePercentage }} full"
+          description: Plan cleanup or expansion before it fills.
+
+      - alert: ProxmoxStorageFull
+        expr: max by (node, storage) (pve_storage_used_bytes / pve_storage_total_bytes) > 0.95
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Proxmox storage {{ $labels.storage }} on {{ $labels.node }} is {{ $value | humanizePercentage }} full"
+          description: Writes fail soon, whether VM disks, backups or anything else stored there.
+
+      - alert: ProxmoxGuestStopped
+        # Running an hour ago and not now: catches crashes and unexpected shutdowns
+        # without paging for guests that are intentionally kept off.
+        expr: pve_guest_up == 0 and pve_guest_up offset 1h == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Proxmox {{ $labels.type }} {{ $labels.name }} ({{ $labels.vmid }}) on {{ $labels.node }} stopped"
+          description: It was running an hour ago. Ignore if the shutdown was intentional.

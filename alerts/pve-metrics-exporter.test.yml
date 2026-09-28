@@ -1,0 +1,110 @@
+# promtool test rules alerts/pve-metrics-exporter.test.yml
+rule_files:
+  - pve-metrics-exporter.rules.yml
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    input_series:
+      - series: pve_up
+        values: 0x10
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: ProxmoxExporterStale
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: pve-metrics-exporter can't reach the Proxmox API
+              description: The last fetch failed and a cached result is being served, so every other Proxmox metric is going stale. Check the API URL, the token and TLS settings.
+
+  # temperature: warning within 10°C of the sensor's own limit, critical at it;
+  # a sensor without a critical-threshold series never alerts.
+  - interval: 1m
+    input_series:
+      - series: 'pve_node_temperature_celsius{node="pve",kind="cpu",chip="coretemp-isa-0000",label="Package id 0"}'
+        values: 92x20
+      - series: 'pve_node_temperature_critical_celsius{node="pve",kind="cpu",chip="coretemp-isa-0000",label="Package id 0"}'
+        values: 100x20
+      - series: 'pve_node_temperature_celsius{node="pve",kind="nvme",chip="nvme-pci-0100",label="Composite"}'
+        values: 101x20
+      - series: 'pve_node_temperature_celsius{node="pve",kind="gpu",chip="nouveau-pci-0200",label="temp1"}'
+        values: 95x20
+      - series: 'pve_node_temperature_critical_celsius{node="pve",kind="gpu",chip="nouveau-pci-0200",label="temp1"}'
+        values: 95x20
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: ProxmoxTemperatureHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, node: pve, kind: cpu, chip: coretemp-isa-0000, label: Package id 0}
+            exp_annotations:
+              summary: pve cpu Package id 0 at 92°C
+              description: Within 10°C of the sensor's own critical temperature. Check fans, dust and airflow.
+          - exp_labels: {severity: warning, node: pve, kind: gpu, chip: nouveau-pci-0200, label: temp1}
+            exp_annotations:
+              summary: pve gpu temp1 at 95°C
+              description: Within 10°C of the sensor's own critical temperature. Check fans, dust and airflow.
+      - eval_time: 3m
+        alertname: ProxmoxTemperatureCritical
+        exp_alerts:
+          - exp_labels: {severity: critical, node: pve, kind: gpu, chip: nouveau-pci-0200, label: temp1}
+            exp_annotations:
+              summary: pve gpu temp1 at 95°C, at its critical limit
+              description: The hardware is at the temperature where it throttles or shuts down.
+
+  - interval: 1m
+    input_series:
+      - series: 'pve_storage_used_bytes{node="pve",storage="local-zfs",plugin="zfspool"}'
+        values: 90x80
+      - series: 'pve_storage_total_bytes{node="pve",storage="local-zfs",plugin="zfspool"}'
+        values: 100x80
+      - series: 'pve_storage_used_bytes{node="pve",storage="backups",plugin="dir"}'
+        values: 50x80
+      - series: 'pve_storage_total_bytes{node="pve",storage="backups",plugin="dir"}'
+        values: 100x80
+    alert_rule_test:
+      - eval_time: 61m
+        alertname: ProxmoxStorageFilling
+        exp_alerts:
+          - exp_labels: {severity: warning, node: pve, storage: local-zfs}
+            exp_annotations:
+              summary: Proxmox storage local-zfs on pve is 90% full
+              description: Plan cleanup or expansion before it fills.
+      - eval_time: 61m
+        alertname: ProxmoxStorageFull
+        exp_alerts: []
+
+  - interval: 1m
+    input_series:
+      - series: 'pve_node_memory_used_bytes{node="pve"}'
+        values: 97x40
+      - series: 'pve_node_memory_total_bytes{node="pve"}'
+        values: 100x40
+      - series: 'pve_node_cpu_percent{node="pve"}'
+        values: 50x40
+    alert_rule_test:
+      - eval_time: 31m
+        alertname: ProxmoxNodeMemoryHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, node: pve}
+            exp_annotations:
+              summary: Proxmox node pve memory at 97%
+              description: The host will start swapping or OOM-killing guest processes.
+      - eval_time: 31m
+        alertname: ProxmoxNodeCpuHigh
+        exp_alerts: []
+
+  # guest stopped: only one that was running an hour ago alerts
+  - interval: 1m
+    input_series:
+      - series: 'pve_guest_up{type="qemu",node="pve",name="homeassistant",vmid="100"}'
+        values: 1x60 0x10
+      - series: 'pve_guest_up{type="lxc",node="pve",name="spare",vmid="200"}'
+        values: 0x70
+    alert_rule_test:
+      - eval_time: 66m
+        alertname: ProxmoxGuestStopped
+        exp_alerts:
+          - exp_labels: {severity: warning, type: qemu, node: pve, name: homeassistant, vmid: "100"}
+            exp_annotations:
+              summary: Proxmox qemu homeassistant (100) on pve stopped
+              description: It was running an hour ago. Ignore if the shutdown was intentional.

@@ -112,6 +112,23 @@ Standard Prometheus text exposition format. Key metrics:
 - `pve_guest_up`, `pve_guest_cpu_percent`, `pve_guest_memory_{used,total}_bytes` — labeled by `type` (`qemu`/`lxc`), `node`, `name`, `vmid`
 - `pve_storage_{used,total}_bytes` — labeled by `node`, `storage`, `plugin`
 
+## Alerting
+
+[`alerts/pve-metrics-exporter.rules.yml`](alerts/pve-metrics-exporter.rules.yml) has ready-made Prometheus alerting rules. Add it under `rule_files:`, or paste its group into a `PrometheusRule`'s `spec.groups` on kube-prometheus-stack.
+
+| Alert | Fires when | Severity |
+| --- | --- | --- |
+| `ProxmoxExporterStale` | the exporter can't reach the Proxmox API (serving a cached result) for 5m | warning |
+| `ProxmoxTemperatureHigh` | a sensor is within 10°C of its own critical temperature for 10m | warning |
+| `ProxmoxTemperatureCritical` | a sensor is at or above its critical temperature for 2m | critical |
+| `ProxmoxNodeCpuHigh` | node CPU above 90% for 30m | warning |
+| `ProxmoxNodeMemoryHigh` | node memory above 95% for 30m | warning |
+| `ProxmoxNodeRootDiskFilling` | node root filesystem above 90% for 1h | warning |
+| `ProxmoxStorageFilling` / `ProxmoxStorageFull` | a storage above 85% for 1h / 95% for 15m | warning / critical |
+| `ProxmoxGuestStopped` | a VM or container that was running an hour ago is stopped | warning |
+
+Temperature alerts only cover sensors that report a critical threshold, so a hot sensor with no known limit won't page. The thresholds are starting points. Every rule has unit tests in [`alerts/pve-metrics-exporter.test.yml`](alerts/pve-metrics-exporter.test.yml), run in CI with `promtool test rules`.
+
 ## Using it with Glance
 
 ```yaml
