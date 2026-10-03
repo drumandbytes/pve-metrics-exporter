@@ -2,7 +2,7 @@
 
 A small Proxmox VE exporter with two outputs from one shared data fetch.
 
-[More Drumandbytes projects](https://drumandbytes.com/projects/)
+[More Drumandbytes projects](https://drumandbytes.com/projects/?ref=pve-metrics-exporter-readme)
 
 It provides:
 
