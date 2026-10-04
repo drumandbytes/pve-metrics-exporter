@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/drumandbytes/pve-metrics-exporter/compare/v1.2.0...v1.2.1) (2026-10-04)
+
+
+### Performance Improvements
+
+* cross-compile arm64 instead of building under QEMU ([#31](https://github.com/drumandbytes/pve-metrics-exporter/issues/31)) ([55b1d9d](https://github.com/drumandbytes/pve-metrics-exporter/commit/55b1d9d15bade32895936e101262b3c87717661d))
+
 ## [1.2.0](https://github.com/drumandbytes/pve-metrics-exporter/compare/v1.1.2...v1.2.0) (2026-09-28)
 
 
