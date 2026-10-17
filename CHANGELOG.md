@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/drumandbytes/pve-metrics-exporter/compare/v1.2.1...v1.2.2) (2026-10-17)
+
+
+### Bug Fixes
+
+* **deps:** bump github.com/prometheus/client_golang ([#34](https://github.com/drumandbytes/pve-metrics-exporter/issues/34)) ([27d12dc](https://github.com/drumandbytes/pve-metrics-exporter/commit/27d12dc53eccd6f9b9f13f2c9a03bac99f013f67))
+
 ## [1.2.1](https://github.com/drumandbytes/pve-metrics-exporter/compare/v1.2.0...v1.2.1) (2026-10-04)
 
 
